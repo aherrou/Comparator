@@ -1,29 +1,9 @@
-#include <faust/gui/UI.h>
-#include <iostream>
-#include <fstream>
-#include <ostream>
-#include <sstream>
-#include <thread>
-#include <cstring>
-#include <math.h>
-#include <vector>
-#include <list>
-
 #include "float.cpp"
 #include "fixed.cpp"
-
-#include "faust/dsp/dsp.h"
-
-#include "faust/dsp/timed-dsp.h"
-#include "faust/dsp/one-sample-dsp.h"
-#include "faust/gui/FUI.h"
-#include "faust/gui/PrintUI.h"
-#include "faust/misc.h"
+#include <libgen.h>
 #include "faust/gui/GTKUI.h"
-#include "faust/gui/JSONUI.h"
-#include "faust/gui/PresetUI.h"
 #include "faust/audio/jack-dsp.h"
-#include "faust/gui/MidiUI.h"
+
 
 #ifndef FAUSTFLOAT
 #define FAUSTFLOAT float
