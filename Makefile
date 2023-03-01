@@ -3,7 +3,7 @@ faustfile       ?= $(wildcard *.dsp)
 all : fixed.cpp float.cpp out
 
 fixed.cpp : $(faustfile)
-	faust -a minimal-fixed-point_nomain.cpp -fx -cn fxdsp $(faustfile) -o fixed.cpp
+	faust -a minimal-fixed-point_nomain.cpp -os -fx -cn fxdsp $(faustfile) -o fixed.cpp
 float.cpp : $(faustfile)
 	faust -a minimal_nomain.cpp -cn fldsp $(faustfile) -o float.cpp
 out : compclass.cpp
