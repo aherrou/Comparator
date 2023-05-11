@@ -132,7 +132,7 @@ int main(int argc, char* argv[])
     FL.init(48000);
     FX.init(48000);
 
-    char name[256];
+    /* char name[256];
     snprintf(name, 256, "%s", basename(argv[0]));
     
     GTKUI* interface = new GTKUI(name, &argc, &argv);
@@ -177,7 +177,7 @@ int main(int argc, char* argv[])
     interface2->stop();
     
     audio2.stop();
-    delete interface2;
+    delete interface2;*/
 
     FL.init(48000);
     FX.init(48000);
