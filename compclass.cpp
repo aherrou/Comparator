@@ -179,6 +179,8 @@ int main(int argc, char* argv[])
     audio2.stop();
     delete interface2;
 
+    FL.init(48000);
+    FX.init(48000);
 
     comparateur comp((dsp*) &FL, (dsp*) &FX);
     comp.compare(200);
