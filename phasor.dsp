@@ -1,13 +1,36 @@
 import("stdfaust.lib");
 
-phasor_imp(freq, reset, phase) = (select2(reset, +(freq/ma.SR), phase) : ma.decimal) ~ _;
+// process = +(1) ~ _ : % (ns) : / (ns) : sin <: _,_
+// with {
+//   ns = 64;
+// };
+// // process = +(2) ~ _ : cos;
+// process = +(0.125) ~ _;
+// process = +(0.125) ~ _;
+// process = _ ~ +(0.125); 
+// process = 1@44;
+// process = +(0.125) ~ _ : %(1) ;//: / (2); // : exp;
+// process = +(0.0625) ~ _ %(10) : sin;
+// process = +(1) ~ _;
 
-// Version to be used with tables
-phasor_table(tablesize, freq, reset, phase) = phasor_imp(freq, reset, phase) : *(float(tablesize));
+// process = (+ (1) ~ _);// : int : /(2);
 
+process = proc_out <: _,_
+with
+{
+  mySine(n) = _ ~ +(1.0) : int : /(n) : sin;
+  mySaw(n) = _ ~ +(1.0): int : /(n) : ma.frac;
+  // proc_out = mySine(mySine(512)*2+16);
+  // proc_out = mySaw(32);
+  // proc_out = mySine(8);
+  // proc_out = mySine(2) + mySine(4) + mySine(8) + mySine(16) + mySine(32) + mySine(64);
+  proc_out = mySine(8); // : atan;
+};
 
-phasor(tablesize, freq) = phasor_table(tablesize, freq, 0, 0);
-
-
-
-process = phasor(hslider("table",0.5,0.1,1,0.1),hslider("freq",440,20,3000,1));
+// process = // (+(1/128))
+ //  + (1) ~ _: int : /(32);
+  // ~ _ : %(128)
+/* /(32)
+  // ~ ma.frac
+  // : * (2*ma.PI)
+  : sin;*/
