@@ -127,26 +127,64 @@ ztimedmap GUI::gTimedZoneMap;
 
 int main(int argc, char* argv[])
 {
-  
+
+  // init 
     fldsp FL;
     fxdsp FX;
     FL.init(48000);
     FX.init(48000);
 
-    /* char name[256];
-    snprintf(name, 256, "%s", basename(argv[0]));
+    bool execute = true;
     
-    GTKUI* interface = new GTKUI(name, &argc, &argv);
-    //FUI finterface;
-
-    FL.buildUserInterface(interface);
-    //FX.buildUserInterface(&finterface);
-
-    jackaudio audio;
-
-    if (!audio.init(name, &FL)) {
-        std::cerr << "Unable to init audio" << std::endl;
+    if (execute){
+      // execute floating-point version
+      char name[256];
+      snprintf(name, 256, "%s", basename(argv[0]));
+      
+      GTKUI* interface = new GTKUI(name, &argc, &argv);
+      //FUI finterface;
+      
+      FL.buildUserInterface(interface);
+      //FX.buildUserInterface(&finterface);
+      
+      jackaudio audio;
+      
+      if (!audio.init(name, &FL)) {
+        std::cerr << "\033[32mUnable to init audio\033[0m" << std::endl;
         exit(1);
+      }
+      
+      audio.start();
+      
+      interface->run();
+      interface->stop();
+      
+      audio.stop();
+      delete interface;
+      
+      // execute fixed-point version
+      snprintf(name, 256, "%s", basename(argv[0]));
+      
+      GTKUI* interface2 = new GTKUI(name, &argc, &argv);
+      
+      FX.buildUserInterface(interface2);
+      //FX.buildUserInterface(&finterface);
+      
+      jackaudio audio2;
+      
+      
+      if (!audio2.init(name, &FX)) {
+        std::cerr << "\033[32mUnable to init audio\033[0m" << std::endl;
+        exit(1);
+      }
+      
+      audio2.start();
+      
+      interface2->run();
+      interface2->stop();
+      
+      audio2.stop();
+      delete interface2;
     }
 
     audio.start();
