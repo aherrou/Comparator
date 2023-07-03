@@ -127,14 +127,30 @@ ztimedmap GUI::gTimedZoneMap;
 
 int main(int argc, char* argv[])
 {
+  // parsing of options
+  int opt;
 
+  bool execute = false;
+  bool log = false;
+
+  while((opt = getopt(argc, argv, ":le")) != -1)
+    {
+      switch(opt)
+	{
+	case 'l':
+	  log = true;
+	  break;
+	case 'e':
+	  execute = true;
+	  break;
+	}
+    }
+  
   // init 
     fldsp FL;
     fxdsp FX;
     FL.init(48000);
     FX.init(48000);
-
-    bool execute = true;
     
     if (execute){
       // execute floating-point version
@@ -186,37 +202,6 @@ int main(int argc, char* argv[])
       audio2.stop();
       delete interface2;
     }
-
-    audio.start();
-
-    interface->run();
-    interface->stop();
-    
-    audio.stop();
-    delete interface;
-    
-    snprintf(name, 256, "%s", basename(argv[0]));
-
-    GTKUI* interface2 = new GTKUI(name, &argc, &argv);
-
-    FX.buildUserInterface(interface2);
-    //FX.buildUserInterface(&finterface);
-    
-    jackaudio audio2;
-
-
-    if (!audio2.init(name, &FX)) {
-        std::cerr << "Unable to init audio" << std::endl;
-        exit(1);
-    }
-
-    audio2.start();
-
-    interface2->run();
-    interface2->stop();
-    
-    audio2.stop();
-    delete interface2;*/
 
     FL.init(48000);
     FX.init(48000);
