@@ -108,6 +108,7 @@ class comparateur {
                 std::cout << std::endl;
             }
             std :: cout << "Total Amount : " << totalcomp << std::endl;
+	    std :: cout << "Relative error : " << totalcomp/(FL->getNumOutputs()*sizechosen) << std::endl;
             std :: cout << "Max : " << compmax;
 
         }
