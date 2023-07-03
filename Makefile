@@ -4,7 +4,7 @@ gtk_pkg = -I/opt/local/include/gtk-2.0 -I/opt/local/lib/gtk-2.0/include -I/opt/l
 all : fixed.cpp float.cpp out
 
 fixed.cpp : $(faustfile)
-	faust -a minimal-fixed-point_nomain.cpp -os -fx -cn fxdsp $(faustfile) -o fixed.cpp
+	faust -a minimal-fixed-point_nomain.cpp -os -fx -vhdl-msb 20 -cn fxdsp $(faustfile) -o fixed.cpp
 float.cpp : $(faustfile)
 	faust -a minimal_nomain.cpp -cn fldsp $(faustfile) -o float.cpp
 out : compclass.cpp
