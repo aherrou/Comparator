@@ -2,7 +2,8 @@
 #include "fixed.cpp"
 #include <libgen.h>
 #include "faust/gui/GTKUI.h"
-#include "faust/audio/jack-dsp.h"
+// #include "faust/audio/jack-dsp.h"
+#include "faust/audio/coreaudio-dsp.h"
 
 
 #ifndef FAUSTFLOAT
@@ -149,12 +150,37 @@ int main(int argc, char* argv[])
   // init 
     fldsp FL;
     fxdsp FX;
-    FL.init(48000);
-    FX.init(48000);
+    FL.init(44100);
+    FX.init(44100);
     
     if (execute){
-      // execute floating-point version
       char name[256];
+
+      // execute fixed-point version
+      snprintf(name, 256, "%s", basename(argv[0]));
+      
+      GTKUI* interface2 = new GTKUI(name, &argc, &argv);
+      
+      FX.buildUserInterface(interface2);
+      //FX.buildUserInterface(&finterface);
+      
+      // jackaudio audio2;
+      coreaudio audio2(44100, 512);      
+      
+      if (!audio2.init(name, &FX)) {
+        std::cerr << "\033[32mUnable to init audio\033[0m" << std::endl;
+        exit(1);
+      }
+      
+      audio2.start();
+      
+      interface2->run();
+      interface2->stop();
+      
+      audio2.stop();
+      delete interface2;
+
+      // execute floating-point version
       snprintf(name, 256, "%s", basename(argv[0]));
       
       GTKUI* interface = new GTKUI(name, &argc, &argv);
@@ -163,7 +189,8 @@ int main(int argc, char* argv[])
       FL.buildUserInterface(interface);
       //FX.buildUserInterface(&finterface);
       
-      jackaudio audio;
+      // jackaudio audio;
+      coreaudio audio(44100, 512);
       
       if (!audio.init(name, &FL)) {
         std::cerr << "\033[32mUnable to init audio\033[0m" << std::endl;
@@ -178,29 +205,6 @@ int main(int argc, char* argv[])
       audio.stop();
       delete interface;
       
-      // execute fixed-point version
-      snprintf(name, 256, "%s", basename(argv[0]));
-      
-      GTKUI* interface2 = new GTKUI(name, &argc, &argv);
-      
-      FX.buildUserInterface(interface2);
-      //FX.buildUserInterface(&finterface);
-      
-      jackaudio audio2;
-      
-      
-      if (!audio2.init(name, &FX)) {
-        std::cerr << "\033[32mUnable to init audio\033[0m" << std::endl;
-        exit(1);
-      }
-      
-      audio2.start();
-      
-      interface2->run();
-      interface2->stop();
-      
-      audio2.stop();
-      delete interface2;
     }
 
     FL.init(48000);
