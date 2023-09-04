@@ -4,6 +4,8 @@
 #include "faust/gui/GTKUI.h"
 // #include "faust/audio/jack-dsp.h"
 #include "faust/audio/coreaudio-dsp.h"
+#include <iostream>
+#include <fstream>
 
 
 #ifndef FAUSTFLOAT
@@ -22,6 +24,7 @@ class comparateur {
         dsp* FL;
         dsp* FX;
         int sizechosen;
+        float snr;
 
     public : 
         
@@ -54,20 +57,30 @@ class comparateur {
             FL_outputs = createbuffer(FL->getNumOutputs(), buffersize);
             FX_outputs = createbuffer(FX->getNumOutputs(), buffersize);
             comp = nullptr;
-
         }
-                
-        void compare(int size)
+
+  void compare(int size, bool logging)
         {   
             
             if (comp != nullptr) {
                 deletebuffer(comp, FL->getNumOutputs());
             }
 
+	    std::ofstream logging_file;
+
+	    if (logging)
+	      {
+		logging_file.open("samples.logging");
+	      }
+	    
             sizechosen = size;
-            int slice = size;                   
+            int slice = size;
             
             comp = createbuffer(FL->getNumOutputs(),size);
+
+	    snr = 0; //signal to noise ratio
+	    float power_signal = 0;
+	    float power_noise = 0;
             
             int t = 0; 
             do {
@@ -81,37 +94,47 @@ class comparateur {
                 FAUSTFLOAT* sub_FL_outputs = FL_outputs[chan];
                 FAUSTFLOAT* sub_FX_outputs = FX_outputs[chan];
                 for (int frame=0; frame<blocsize; ++frame) {
-                std::cout << "FL " << sub_FL_outputs[frame] << " | FX " << sub_FX_outputs[frame] << std::endl;
-                sub_comp[frame+(t*buffersize)] = sub_FL_outputs[frame] - sub_FX_outputs[frame];
+                    std::cout << "FL " << sub_FL_outputs[frame] << " | FX " << sub_FX_outputs[frame] << std::endl;
+                    sub_comp[frame+(t*buffersize)] = sub_FL_outputs[frame] - sub_FX_outputs[frame];
+
+		    if (logging and chan == 0) // we only logging one channel
+		      logging_file << sub_FL_outputs[frame] << ";" << sub_FX_outputs[frame] << ";" << std::endl;
+
+		    power_signal += sub_FL_outputs[frame]*sub_FL_outputs[frame];
+		    power_noise += sub_comp[frame+(t*buffersize)]*sub_comp[frame+(t*buffersize)];
                 }
             }
             ++t;
             slice = slice - buffersize;
             }while (slice > 0);
+
+	    snr = log(power_signal/power_noise);
         }
                     
         void display()
         {   
             FAUSTFLOAT totalcomp = 0;
             FAUSTFLOAT compmax=0;
+
             for (int frame=0; frame < sizechosen; ++frame) 
             { 
                 std::cout << "frame: "<< frame;
                 for (int chan=0; chan< FL->getNumOutputs(); ++chan) 
-                {
+		  {
                     FAUSTFLOAT* sub_comp = comp[chan];
 
                     std::cout << " | Channel " << chan+1 << " :" << sub_comp[frame] << "\t";
                     
                     totalcomp = totalcomp + std::abs(sub_comp[frame]);
                     compmax = std::max(compmax,std::abs(sub_comp[frame]));
-                }
+		  }
+
                 std::cout << std::endl;
             }
             std :: cout << "Total Amount : " << totalcomp << std::endl;
 	    std :: cout << "Relative error : " << totalcomp/(FL->getNumOutputs()*sizechosen) << std::endl;
-            std :: cout << "Max : " << compmax;
-
+            std :: cout << "Max : " << compmax << std::endl;
+	    std :: cout << "SNR : " << snr << std::endl;
         }
 
         virtual ~comparateur()
@@ -132,14 +155,14 @@ int main(int argc, char* argv[])
   int opt;
 
   bool execute = false;
-  bool log = false;
+  bool logging = false;
 
   while((opt = getopt(argc, argv, ":le")) != -1)
     {
       switch(opt)
 	{
 	case 'l':
-	  log = true;
+	  logging = true;
 	  break;
 	case 'e':
 	  execute = true;
@@ -211,6 +234,6 @@ int main(int argc, char* argv[])
     FX.init(48000);
 
     comparateur comp((dsp*) &FL, (dsp*) &FX);
-    comp.compare(200);
+    comp.compare(200, logging);
     comp.display();
 }
