@@ -3,6 +3,7 @@
 #include <libgen.h>
 #include "faust/gui/GTKUI.h"
 #include "faust/audio/coreaudio-dsp.h"
+#include "faust/audio/jack-dsp.h"
 #include <iostream>
 #include <fstream>
 
@@ -150,6 +151,10 @@ ztimedmap GUI::gTimedZoneMap;
 
 int main(int argc, char* argv[])
 {
+  // sample rate and buffer size
+  int sr = 44100;
+  int bs = 512;
+	
   // parsing of options
   int opt;
 
