@@ -8,6 +8,6 @@ fixed.cpp : $(faustfile)
 float.cpp : $(faustfile)
 	faust -a minimal_nomain.cpp -cn fldsp $(faustfile) -o float.cpp
 out : compclass.cpp
-	c++ -std=c++11 -o3 -g compclass.cpp  -I/usr/local/include/ap_fixed `pkg-config --cflags --libs jack` $(gtk_pkg) -o out
+	c++ -std=c++11 -o3 -g compclass.cpp  -I/usr/local/include/ap_fixed `pkg-config --cflags --static --libs sndfile gtk+-2.0 jack` -o out
 clean : 
 	rm -f fixed.cpp float.cpp out

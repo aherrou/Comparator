@@ -1,6 +1,9 @@
 #include "float.cpp"
 #include "fixed.cpp"
 #include <libgen.h>
+
+#include <sndfile.h>
+#include "faust/dsp/dsp-tools.h"
 #include "faust/gui/GTKUI.h"
 #include "faust/audio/coreaudio-dsp.h"
 #include "faust/audio/jack-dsp.h"
@@ -11,6 +14,9 @@
 #ifndef FAUSTFLOAT
 #define FAUSTFLOAT float
 #endif
+
+// typedef sf_count_t (* sample_read)(SNDFILE* sndfile, void* buffer, sf_count_t frames);
+typedef sf_count_t (* sample_write)(SNDFILE* sndfile, void* buffer, sf_count_t frames);
 
 class comparateur {
 
@@ -84,30 +90,30 @@ class comparateur {
             
             int t = 0; 
             do {
-            int blocsize = std::min(buffersize, slice);
-            FX->compute(blocsize, inputs, FX_outputs);
-            FL->compute(blocsize, inputs, FL_outputs);
-            
-            for (int chan=0; chan<FL->getNumOutputs(); ++chan)
-            {
-                FAUSTFLOAT* sub_comp = comp[chan];
-                FAUSTFLOAT* sub_FL_outputs = FL_outputs[chan];
-                FAUSTFLOAT* sub_FX_outputs = FX_outputs[chan];
-                for (int frame=0; frame<blocsize; ++frame) {
+	      int blocsize = std::min(buffersize, slice);
+	      FX->compute(blocsize, inputs, FX_outputs);
+	      FL->compute(blocsize, inputs, FL_outputs);
+	      
+	      for (int chan=0; chan<FL->getNumOutputs(); ++chan)
+		{
+		  FAUSTFLOAT* sub_comp = comp[chan];
+		  FAUSTFLOAT* sub_FL_outputs = FL_outputs[chan];
+		  FAUSTFLOAT* sub_FX_outputs = FX_outputs[chan];
+		  for (int frame=0; frame<blocsize; ++frame) {
                     std::cout << "FL " << sub_FL_outputs[frame] << " | FX " << sub_FX_outputs[frame] << std::endl;
                     sub_comp[frame+(t*buffersize)] = sub_FL_outputs[frame] - sub_FX_outputs[frame];
-
+		    
 		    if (logging and chan == 0) // we only logging one channel
 		      logging_file << sub_FL_outputs[frame] << ";" << sub_FX_outputs[frame] << ";" << std::endl;
-
+		    
 		    power_signal += sub_FL_outputs[frame]*sub_FL_outputs[frame];
 		    power_noise += sub_comp[frame+(t*buffersize)]*sub_comp[frame+(t*buffersize)];
-                }
-            }
-            ++t;
-            slice = slice - buffersize;
+		  }
+		}
+	      ++t;
+	      slice = slice - buffersize;
             }while (slice > 0);
-
+	    
 	    snr = log(power_signal/power_noise);
         }
                     
@@ -152,8 +158,8 @@ ztimedmap GUI::gTimedZoneMap;
 int main(int argc, char* argv[])
 {
   // sample rate and buffer size
-  int sr = 44100;
-  int bs = 512;
+  int samplerate = 44100;
+  int buffersize = 512;
 	
   // parsing of options
   int opt;
@@ -175,47 +181,74 @@ int main(int argc, char* argv[])
     }
   
   // init 
-    fldsp FL;
-    fxdsp FX;
-    FL.init(48000);
-    FX.init(48000);
+  fldsp FL;
+  fxdsp FX;
+  FL.init(samplerate);
+  FX.init(samplerate);
     
-    if (execute){
-      // execute floating-point version
+  if (execute){
+      // number of samples to compute for each DSP
+      int audiolength = 3;
+      int samplenb = audiolength*samplerate;
+      
+      sample_write writer;
+      if (sizeof(FAUSTFLOAT) == 4) 
+        writer = reinterpret_cast<sample_write>(sf_writef_float);
+      else 
+	writer = reinterpret_cast<sample_write>(sf_writef_double);
+
+      ////////////////////////////////////
+      // execute floating-point version //
+      ////////////////////////////////////
       char name[256];
-      snprintf(name, 256, "%s", basename(argv[0]));
-      
-      GTKUI* interface = new GTKUI(name, &argc, &argv);
-      //FUI finterface;
-      
-      FL.buildUserInterface(interface);
-      //FX.buildUserInterface(&finterface);
-      
-      jackaudio audio;
-      
-      if (!audio.init(name, &FL)) {
-        std::cerr << "\033[32mUnable to init audio\033[0m" << std::endl;
-        exit(1);
+      snprintf(name, 256, "%s", "float.wav");
+
+      /* FAUSTFLOAT** inputs = new FAUSTFLOAT*[FL.getNumInputs()];
+      for (int i=0; i< FL.getNumInputs(); i++){
+	inputs[i] = new FAUSTFLOAT[buffersize];
+	memset(inputs[i], 0, sizeof(FAUSTFLOAT) * buffersize);
+	}*/ 
+
+      SF_INFO out_info = {
+	samplenb,
+	samplerate,
+	FL.getNumOutputs(),
+	SF_FORMAT_WAV|SF_FORMAT_PCM_24|SF_ENDIAN_LITTLE,
+	0,
+	0
+      };
+      std::cout << "Format = " << (int)(SF_FORMAT_WAV|SF_FORMAT_PCM_24|SF_ENDIAN_LITTLE) << std::endl;
+      // memset(&out_info, 0, sizeof(out_info));
+      // out_info.channels = FL.getNumOutputs();
+      SNDFILE* out_sf_fl = sf_open(name, SFM_WRITE, &out_info);
+      if (!out_sf_fl) {
+	std::cerr << "ERROR : cannot write output file " << name << std::endl;
+	sf_perror(out_sf_fl);
+	exit(1);
       }
+
+      Interleaver ilvFL(buffersize, FL.getNumOutputs(), FL.getNumOutputs());
+
+      // compute samples
+      int cur_frame = 0;
+      do {
+	int blocsize = std::min(buffersize, samplenb - cur_frame);
+	std::cout << "Computing a block of " << blocsize << " samples at frame " << cur_frame << std::endl;
+
+	FL.compute(blocsize, nullptr, ilvFL.inputs());
+	ilvFL.interleave();
+	writer(out_sf_fl, ilvFL.output(), blocsize);
+	cur_frame += blocsize;
+      } while (cur_frame < samplenb);
+
+      sf_close(out_sf_fl);
       
-      audio.start();
-      
-      interface->run();
-      interface->stop();
-      
-      audio.stop();
-      delete interface;
-      
-      // execute fixed-point version
-      snprintf(name, 256, "%s", basename(argv[0]));
-      
-      GTKUI* interface2 = new GTKUI(name, &argc, &argv);
-      
-      FX.buildUserInterface(interface2);
-      //FX.buildUserInterface(&finterface);
+      /////////////////////////////////
+      // execute fixed-point version //
+      /////////////////////////////////
+      snprintf(name, 256, "%s", "fixed.wav");
       
       jackaudio audio2;
-      
       
       if (!audio2.init(name, &FX)) {
         std::cerr << "\033[32mUnable to init audio\033[0m" << std::endl;
@@ -223,12 +256,7 @@ int main(int argc, char* argv[])
       }
       
       audio2.start();
-      
-      interface2->run();
-      interface2->stop();
-      
       audio2.stop();
-      delete interface2;
     }
 
     FL.init(48000);
