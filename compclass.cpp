@@ -65,9 +65,8 @@ class comparateur {
             comp = nullptr;
         }
 
-  void compare(int size, bool logging)
+  void compare(int size, bool logging, std::string name="")
         {   
-            
             if (comp != nullptr) {
                 deletebuffer(comp, FL->getNumOutputs());
             }
@@ -76,7 +75,8 @@ class comparateur {
 
 	    if (logging)
 	      {
-		logging_file.open("samples.logging");
+		std::string filename = "samples-"+name+".log";
+		logging_file.open(filename.c_str());
 	      }
 	    
             sizechosen = size;
@@ -103,7 +103,7 @@ class comparateur {
                     std::cout << "FL " << sub_FL_outputs[frame] << " | FX " << sub_FX_outputs[frame] << std::endl;
                     sub_comp[frame+(t*buffersize)] = sub_FL_outputs[frame] - sub_FX_outputs[frame];
 		    
-		    if (logging and chan == 0) // we only logging one channel
+		    if (logging and chan == 0) // we only log one channel
 		      logging_file << sub_FL_outputs[frame] << ";" << sub_FX_outputs[frame] << ";" << std::endl;
 		    
 		    power_signal += sub_FL_outputs[frame]*sub_FL_outputs[frame];
@@ -166,18 +166,33 @@ int main(int argc, char* argv[])
 
   bool execute = false;
   bool logging = false;
+  bool help = false;
 
-  while((opt = getopt(argc, argv, ":le")) != -1)
+  while((opt = getopt(argc, argv, ":lwh")) != -1)
     {
       switch(opt)
 	{
 	case 'l':
 	  logging = true;
 	  break;
-	case 'e':
+	case 'w':
 	  execute = true;
 	  break;
+	case 'h':
+	  help = true;
+	  break;
 	}
+    }
+
+  if (help)
+    {
+      std::cout << "Usage: "
+		<< argv[0] << " [options]" << std::endl
+		<< "Options :"<< std::endl
+		<< "\t -w : writes the floating-point and fixed-point outputs to sound files" << std::endl
+		<< "\t -l : logs the floating-point and fixed-point samples to a text file" << std::endl
+		<< "\t -h : displays this help message" << std::endl ;
+	return 0;
     }
   
   // init 
@@ -185,6 +200,9 @@ int main(int argc, char* argv[])
   fxdsp FX;
   FL.init(samplerate);
   FX.init(samplerate);
+
+  std::string executable_name(argv[0]);
+  std::string filename = executable_name.substr(executable_name.rfind("/")+1);  
     
   if (execute){
       // number of samples to compute for each DSP
@@ -201,7 +219,7 @@ int main(int argc, char* argv[])
       // execute floating-point version //
       ////////////////////////////////////
       char name[256];
-      snprintf(name, 256, "%s", "float.wav");
+      snprintf(name, 256, "%s", ("float-"+filename+".wav").c_str());
 
       /* FAUSTFLOAT** inputs = new FAUSTFLOAT*[FL.getNumInputs()];
       for (int i=0; i< FL.getNumInputs(); i++){
@@ -217,9 +235,7 @@ int main(int argc, char* argv[])
 	0,
 	0
       };
-      std::cout << "Format = " << (int)(SF_FORMAT_WAV|SF_FORMAT_PCM_24|SF_ENDIAN_LITTLE) << std::endl;
-      // memset(&out_info, 0, sizeof(out_info));
-      // out_info.channels = FL.getNumOutputs();
+
       SNDFILE* out_sf_fl = sf_open(name, SFM_WRITE, &out_info);
       if (!out_sf_fl) {
 	std::cerr << "ERROR : cannot write output file " << name << std::endl;
@@ -233,7 +249,6 @@ int main(int argc, char* argv[])
       int cur_frame = 0;
       do {
 	int blocsize = std::min(buffersize, samplenb - cur_frame);
-	std::cout << "Computing a block of " << blocsize << " samples at frame " << cur_frame << std::endl;
 
 	FL.compute(blocsize, nullptr, ilvFL.inputs());
 	ilvFL.interleave();
@@ -246,23 +261,46 @@ int main(int argc, char* argv[])
       /////////////////////////////////
       // execute fixed-point version //
       /////////////////////////////////
-      snprintf(name, 256, "%s", "fixed.wav");
-      
-      jackaudio audio2;
-      
-      if (!audio2.init(name, &FX)) {
-        std::cerr << "\033[32mUnable to init audio\033[0m" << std::endl;
-        exit(1);
+      snprintf(name, 256, "%s", ("fixed-"+filename+".wav").c_str());
+
+      out_info = {
+	samplenb,
+	samplerate,
+	FX.getNumOutputs(),
+	SF_FORMAT_WAV|SF_FORMAT_PCM_24|SF_ENDIAN_LITTLE,
+	0,
+	0
+      };
+      std::cout << "Format = " << (int)(SF_FORMAT_WAV|SF_FORMAT_PCM_24|SF_ENDIAN_LITTLE) << std::endl;
+      SNDFILE* out_sf_fx = sf_open(name, SFM_WRITE, &out_info);
+      if (!out_sf_fx) {
+	std::cerr << "ERROR : cannot write output file " << name << std::endl;
+	sf_perror(out_sf_fx);
+	exit(1);
       }
+
+      Interleaver ilvFX(buffersize, FX.getNumOutputs(), FX.getNumOutputs());
+
+      // compute samples
+      cur_frame = 0;
+      do {
+	int blocsize = std::min(buffersize, samplenb - cur_frame);
+
+	FX.compute(blocsize, nullptr, ilvFX.inputs());
+	ilvFX.interleave();
+	writer(out_sf_fx, ilvFX.output(), blocsize);
+	cur_frame += blocsize;
+      } while (cur_frame < samplenb);
+
+      sf_close(out_sf_fx);
+
       
-      audio2.start();
-      audio2.stop();
     }
 
     FL.init(48000);
     FX.init(48000);
 
     comparateur comp((dsp*) &FL, (dsp*) &FX);
-    comp.compare(200, logging);
+    comp.compare(200, logging, filename);
     comp.display();
 }
