@@ -1,3 +1,3 @@
 import("stdfaust.lib");
 
-process = +(1) ~ _;
+process = ma.PI;
