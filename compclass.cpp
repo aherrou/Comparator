@@ -4,9 +4,7 @@
 
 #include <sndfile.h>
 #include "faust/dsp/dsp-tools.h"
-#include "faust/gui/GTKUI.h"
-#include "faust/audio/coreaudio-dsp.h"
-#include "faust/audio/jack-dsp.h"
+#include <unistd.h>
 #include <iostream>
 #include <fstream>
 
@@ -152,8 +150,8 @@ class comparateur {
 
 };
 
-std::list<GUI*> GUI::fGuiList;
-ztimedmap GUI::gTimedZoneMap;
+// std::list<GUI*> GUI::fGuiList;
+// ztimedmap GUI::gTimedZoneMap;
 
 int main(int argc, char* argv[])
 {
