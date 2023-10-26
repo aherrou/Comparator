@@ -29,7 +29,7 @@ do
   p=$1
 
   if [ $p = "-help" ] || [ $p = "-h" ]; then
-     usage faust2minimal "[options] [Faust options] <file.dsp>"
+     usage faust2comparator "[options] [Faust options] <file.dsp>"
      exit
   fi
 
@@ -41,7 +41,7 @@ do
        FILES="$FILES $p"
     else
        OPTIONS="$OPTIONS $p"        
-    fi
+  fi
 
 shift
 
@@ -56,18 +56,18 @@ for f in $FILES; do
 
     # compile the DSP to c++ using the architecture file
     echo "compile the DSP to c++ using the architecture file"
-  faust -i -a $ARCHFILE1 -cn "fldsp" "$f" -o "float.cpp"|| exit
-  faust -i -a $ARCHFILE2 -fx -cn "fxdsp" "$f" -o "fixed.cpp"|| exit
+    faust -i -a $ARCHFILE1 -cn "fldsp" "$f" -o "float.cpp"|| exit
+    faust -i -a $ARCHFILE2 -fx -cn "fxdsp" "$f" -o "fixed.cpp"|| exit
 
     # compile c++ to binary
     echo "compile c++ to binary"
     (
-        $CXX $CXXFLAGS -g "compclass.cpp" `pkg-config --cflags --libs jack gtk+-2.0` -o "${f%.dsp}"
+        $CXX $CXXFLAGS -g "compclass.cpp" "-I/usr/local/include/ap_fixed" `pkg-config --cflags --static --libs sndfile jack gtk+-2.0` -o "${f%.dsp}"
     ) > /dev/null || exit
 
-  # remove tempory files
-    rm -f "float.cpp"
-    rm -f "fixed.cpp"
+  # remove tempory files # actually, they're useful to have to track bugs in FX inference
+    # rm -f "float.cpp"
+    # rm -f "fixed.cpp"
 
     # collect binary file name for FaustWorks
     BINARIES="$BINARIES${f%.dsp};"
